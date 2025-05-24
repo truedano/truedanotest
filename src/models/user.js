@@ -4,13 +4,8 @@ const { db } = require('../db'); // Assuming db.js exports { db, initializeDatab
 const SALT_ROUNDS = 10;
 
 async function createUser(username, password, role, defaultPasswordChanged = true) {
-  await db.read();
-  // Initialize users array if it doesn't exist
-  if (!db.data.users) {
-    db.data.users = [];
-  }
-  
-  const existingUser = db.data.users.find(u => u.username === username);
+  await db.read(); // Ensure latest data for finding existing user
+  const existingUser = db.get('users').find({ username: username }).value();
   if (existingUser) {
     throw new Error('User already exists');
   }
@@ -26,8 +21,7 @@ async function createUser(username, password, role, defaultPasswordChanged = tru
     defaultPasswordChanged 
   };
   
-  db.data.users.push(user);
-  await db.write();
+  await db.get('users').push(user).write();
   
   // Return user object without password for security
   const { hashedPassword: _, ...userWithoutPassword } = user;
@@ -35,13 +29,8 @@ async function createUser(username, password, role, defaultPasswordChanged = tru
 }
 
 async function findUserByUsername(username) {
-  await db.read();
-  // Initialize users array if it doesn't exist (should not happen if initializeDatabase was called)
-  if (!db.data.users) {
-    db.data.users = [];
-    return undefined; // Or handle as an error / unexpected state
-  }
-  const user = db.data.users.find(u => u.username === username);
+  await db.read(); // Ensure latest data
+  const user = db.get('users').find({ username: username }).value();
   return user;
 }
 
@@ -50,39 +39,27 @@ async function verifyPassword(plainPassword, hashedPassword) {
 }
 
 async function updateUserPassword(userId, newPassword) {
-  await db.read();
-  const userIndex = db.data.users.findIndex(u => u.id === userId);
+  await db.read(); // Ensure latest data
+  const userToUpdate = db.get('users').find({ id: userId });
 
-  if (userIndex === -1) {
+  if (!userToUpdate.value()) {
     throw new Error('User not found');
   }
 
   const salt = await bcrypt.genSalt(SALT_ROUNDS);
   const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-  db.data.users[userIndex].hashedPassword = hashedPassword;
-  db.data.users[userIndex].defaultPasswordChanged = true;
-  
-  await db.write();
+  await userToUpdate.assign({ hashedPassword: hashedPassword, defaultPasswordChanged: true }).write();
   
   // Return a representation of the updated user (without password)
-  const { hashedPassword: _, ...updatedUser } = db.data.users[userIndex];
-  return updatedUser;
+  const updatedUserFromDb = userToUpdate.value();
+  const { hashedPassword: _, ...updatedUserSafe } = updatedUserFromDb;
+  return updatedUserSafe;
 }
 
-module.exports = {
-  createUser,
-  findUserByUsername,
-  verifyPassword,
-  updateUserPassword, // Add this export
-  findUserById,
-};
-
 async function findUserById(userId) {
-  await db.read();
-  // Ensure users array exists
-  db.data.users = db.data.users || [];
-  const user = db.data.users.find(u => u.id === userId);
+  await db.read(); // Ensure latest data
+  const user = db.get('users').find({ id: userId }).value();
   if (user) {
     // Return a safe version of user (without password hash)
     const { hashedPassword, ...safeUser } = user; 
@@ -90,3 +67,11 @@ async function findUserById(userId) {
   }
   return null;
 }
+
+module.exports = {
+  createUser,
+  findUserByUsername,
+  verifyPassword,
+  updateUserPassword,
+  findUserById,
+};
