@@ -52,7 +52,7 @@ fastify.register(require('@fastify/session'), {
 });
 
 // At the top with other requires
-const { initializeDatabase, db } = require("./src/db"); // Added db
+const { initializeDatabase } = require("./src/db"); // Removed db import as it's no longer directly used
 // Model Imports (Consolidated)
 const { 
     createUser, 
@@ -554,10 +554,9 @@ async function startServer() {
     await initializeDatabase(); // Initialize DB
 
     // Seed initial users
-    await db.read(); // Ensure db.data is loaded before seeding
-    if (!db.data.users) { // Should be initialized by initializeDatabase, but good practice
-        db.data.users = [];
-    }
+    // Removed: await db.read();
+    // Removed: if (!db.data.users) { db.data.users = []; }
+    // The model functions (findUserByUsername, createUser) now handle reading/writing via jsonfile.
 
     // findUserByUsername and createUser are globally available
     const adminUser = await findUserByUsername('admin');
