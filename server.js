@@ -4,6 +4,16 @@
  */
 
 const path = require("path");
+const Handlebars = require("handlebars"); // Consolidated and renamed for clarity
+
+// Register Handlebars helper for equality ONCE, right after requiring Handlebars
+Handlebars.registerHelper('if_eq', function(a, b, opts) {
+  if (a === b) {
+    return opts.fn(this);
+  } else {
+    return opts.inverse(this);
+  }
+});
 
 // Require the fastify framework and instantiate it
 const fastify = require("fastify")({
@@ -23,28 +33,12 @@ fastify.register(require("@fastify/static"), {
 fastify.register(require("@fastify/formbody"));
 
 // View is a templating manager for fastify
+// CORRECTED: Configure @fastify/view with the Handlebars instance that already includes the helper
 fastify.register(require("@fastify/view"), {
   engine: {
-    handlebars: require("handlebars"), // Will be modified to use the instance
+    handlebars: Handlebars, // Use the pre-configured Handlebars instance
   },
 });
-
-// Register Handlebars helper for equality
-const handlebars = require("handlebars");
-handlebars.registerHelper('if_eq', function(a, b, opts) {
-  if (a === b) {
-    return opts.fn(this);
-  } else {
-    return opts.inverse(this);
-  }
-});
-
-// Re-register view with the modified handlebars instance
-// Note: This might need adjustment based on how fastify allows re-registering or modifying existing registrations.
-// If direct modification isn't feasible, this should be done during initial registration.
-// For this context, let's assume we can update the engine instance or it's done at setup.
-// Correct approach is to configure this when fastify/view is first registered.
-// Let's find the original registration and modify it.
 
 // Session management
 fastify.register(require('@fastify/cookie'));
@@ -59,7 +53,22 @@ fastify.register(require('@fastify/session'), {
 
 // At the top with other requires
 const { initializeDatabase, db } = require("./src/db"); // Added db
-const { createUser, findUserByUsername } = require('./src/models/user'); // Add this require
+// Model Imports (Consolidated)
+const { 
+    createUser, 
+    findUserByUsername, 
+    verifyPassword, 
+    updateUserPassword, 
+    findUserById // findUserById was added in a previous step and is needed
+} = require('./src/models/user');
+
+const { 
+    createEvent, 
+    getAllEvents, 
+    findEventById, // Note: This findEventById is for events, distinct from user's findUserById
+    updateEvent, 
+    registerUserForEvent 
+} = require('./src/models/event');
 
 // Load and parse SEO data
 const seo = require("./src/seo.json");
@@ -99,11 +108,10 @@ fastify.get("/", function (request, reply) {
   return reply.view("/src/pages/index.hbs", params);
 });
 
-// Make sure findUserByUsername and verifyPassword are available for login routes
-// And updateUserPassword for the change-password route
-const { findUserByUsername, verifyPassword, updateUserPassword, createUser } = require('./src/models/user'); // Added createUser
-
 // Define adminOnly preHandler (can be defined once and reused)
+// User model functions (findUserByUsername, verifyPassword, updateUserPassword, createUser) are now globally available from the top import
+// The redundant import that was previously here has been removed by the last successful diff.
+// This search block is now looking for the line that was *after* the removed redundant import.
 async function adminOnly(request, reply) {
   if (!request.session.user) {
     return reply.redirect('/login');
@@ -261,10 +269,8 @@ fastify.post('/admin/create-user', { preHandler: adminOnly }, async (request, re
   return reply.view('/src/pages/admin/create-user.hbs', params);
 });
 
-// Require getAllEvents from event model
-const { createEvent, getAllEvents, findEventById, updateEvent } = require('./src/models/event'); // Added getAllEvents, findEventById, updateEvent
-
 // GET /admin/events
+// Event model functions (createEvent, getAllEvents, findEventById, updateEvent) are now globally available from the top import
 fastify.get('/admin/events', { preHandler: adminOnly }, async (request, reply) => {
   try {
     const events = await getAllEvents();
@@ -323,7 +329,7 @@ fastify.get('/events', { preHandler: loggedInOnly }, async (request, reply) => {
 });
 
 // POST /admin/events/new
-// Note: createEvent is already imported above with getAllEvents etc.
+// createEvent is globally available
 fastify.post('/admin/events/new', { preHandler: adminOnly }, async (request, reply) => {
   const { title, description, date } = request.body;
   let customFieldLabels = request.body.customFieldLabels; // This could be an array or single string
@@ -416,7 +422,7 @@ fastify.post('/events/:eventId/register', { preHandler: loggedInOnly }, async (r
       });
     }
     
-    // registerUserForEvent is already required from src/models/event
+    // registerUserForEvent is globally available
     await registerUserForEvent(eventId, userId, parsedResponses);
     return reply.redirect('/events?message=' + encodeURIComponent('Successfully registered for the event!'));
   } catch (err) {
@@ -458,8 +464,7 @@ fastify.get('/my-events', { preHandler: loggedInOnly }, async (request, reply) =
 });
 
 // GET /admin/events/:eventId/attendees
-// Note: findEventById is already imported from event model
-// Note: findUserById is already imported from user model
+// findEventById (for events) and findUserById are globally available
 fastify.get('/admin/events/:eventId/attendees', { preHandler: adminOnly }, async (request, reply) => {
   const { eventId } = request.params;
   let params = { seo: seo, user: request.session.user };
@@ -554,12 +559,14 @@ async function startServer() {
         db.data.users = [];
     }
 
+    // findUserByUsername and createUser are globally available
     const adminUser = await findUserByUsername('admin');
     if (!adminUser) {
       console.log('Creating default admin user...');
       await createUser('admin', 'admin', 'admin', false);
     }
 
+    // findUserByUsername and createUser are globally available
     const defaultUser = await findUserByUsername('user');
     if (!defaultUser) {
       console.log('Creating default general user...');
