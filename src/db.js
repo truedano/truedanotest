@@ -1,4 +1,4 @@
-const { Low } = require('lowdb');
+const { Low } = require('lowdb/lib/Low'); // Changed to target CommonJS compatible path
 const { JSONFile } = require('lowdb/node'); // for CommonJS
 const path = require('path');
 
