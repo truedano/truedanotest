@@ -1,0 +1,30 @@
+<h1>My Registered Events</h1>
+
+{{#if error}}
+  <p style="color: red;">{{error}}</p>
+{{/if}}
+
+{{#if registeredEvents.length}}
+  {{#each registeredEvents}}
+    <div class="event-listing" style="border: 1px solid #ccc; margin-bottom: 15px; padding: 10px;">
+      <h2>{{this.title}}</h2>
+      <p><strong>Date:</strong> {{this.date}}</p>
+      
+      {{#if this.userResponses.length}}
+        <h4>My Answers:</h4>
+        <ul>
+          {{#each this.userResponses}}
+            <li><strong>{{this.label}}:</strong> {{this.value}}</li>
+          {{/each}}
+        </ul>
+      {{else}}
+        <p><em>No specific answers recorded for this event.</em></p>
+      {{/if}}
+    </div>
+  {{/each}}
+{{else}}
+  <p>You have not registered for any events yet. <a href="/events">View available events.</a></p>
+{{/if}}
+
+<p><a href="/dashboard">Back to Dashboard</a></p>
+<p><a href="/">Back to Home</a></p>

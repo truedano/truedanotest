@@ -1,0 +1,16 @@
+<h1>Login</h1>
+{{#if error}}
+  <p style="color: red;">{{error}}</p>
+{{/if}}
+<form method="POST" action="/login">
+  <div>
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="username" required>
+  </div>
+  <div>
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required>
+  </div>
+  <button type="submit">Login</button>
+</form>
+<p>Hint: Default admin is admin/admin, default user is user/users.</p>

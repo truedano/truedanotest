@@ -1,0 +1,45 @@
+<h1>Admin: Manage Events</h1>
+<p><a href="/admin/events/new">Create New Event</a></p>
+
+{{#if error}}
+  <p style="color: red;">{{error}}</p>
+{{/if}}
+
+{{#if events.length}}
+  <table>
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Date</th>
+        <th>Published</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each events}}
+        <tr>
+          <td>{{this.title}}</td>
+          <td>{{this.date}}</td>
+          <td>{{#if this.published}}Yes{{else}}No{{/if}}</td>
+          <td>
+            {{#if this.published}}
+              <form method="POST" action="/admin/events/{{this.id}}/unpublish" style="display:inline;">
+                <button type="submit">Unpublish</button>
+              </form>
+            {{else}}
+              <form method="POST" action="/admin/events/{{this.id}}/publish" style="display:inline;">
+                <button type="submit">Publish</button>
+              </form>
+            {{/if}}
+            <a href="/admin/events/{{this.id}}/attendees" style="margin-left: 5px;">View Attendees</a>
+          </td>
+        </tr>
+      {{/each}}
+    </tbody>
+  </table>
+{{else}}
+  <p>No events created yet.</p>
+{{/if}}
+
+<p><a href="/dashboard">Back to Dashboard</a></p>
+<p><a href="/">Back to Home</a></p>

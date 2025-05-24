@@ -1,0 +1,66 @@
+<h1>Admin: Create New Event</h1>
+{{#if error}}
+  <p style="color: red;">{{error}}</p>
+{{/if}}
+{{#if successMessage}}
+  <p style="color: green;">{{successMessage}}</p>
+{{/if}}
+<form method="POST" action="/admin/events/new">
+  <div>
+    <label for="title">Event Title:</label>
+    <input type="text" id="title" name="title" value="{{data.title}}" required>
+  </div>
+  <div>
+    <label for="description">Event Description:</label>
+    <textarea id="description" name="description" rows="4" required>{{data.description}}</textarea>
+  </div>
+  <div>
+    <label for="date">Event Date:</label>
+    <input type="date" id="date" name="date" value="{{data.date}}" required>
+  </div>
+
+  <div id="custom-fields-container">
+    <h4>Custom Fields for User Input (all will be text fields):</h4>
+    <!-- Dynamically added fields will go here -->
+    {{#if data.customFieldLabels}}
+      {{#each data.customFieldLabels}}
+        <div id="custom-field-{{@index}}">
+          <input type="text" name="customFieldLabels[]" placeholder="Enter field label for user" style="width: 70%; margin-right: 5px;" value="{{this}}">
+          <button type="button" class="remove-custom-field" data-id="{{@index}}">Remove</button>
+        </div>
+      {{/each}}
+    {{/if}}
+  </div>
+  <button type="button" id="add-custom-field">Add Custom Field</button>
+  
+  <br><br>
+  <button type="submit">Create Event</button>
+</form>
+<p><a href="/admin/events">Back to Manage Events</a></p>
+
+<script>
+  const container = document.getElementById('custom-fields-container');
+  const addButton = document.getElementById('add-custom-field');
+  let fieldIdCounter = {{#if data.customFieldLabels}}{{data.customFieldLabels.length}}{{else}}0{{/if}}; // Initialize counter based on existing fields
+
+  addButton.addEventListener('click', () => {
+    fieldIdCounter++;
+    const div = document.createElement('div');
+    div.id = `custom-field-${fieldIdCounter}`; // Use unique ID for the div
+    div.innerHTML = `
+      <input type="text" name="customFieldLabels[]" placeholder="Enter field label for user" style="width: 70%; margin-right: 5px;">
+      <button type="button" class="remove-custom-field" data-id="${fieldIdCounter}">Remove</button>
+    `;
+    container.appendChild(div);
+  });
+
+  container.addEventListener('click', (event) => {
+    if (event.target.classList.contains('remove-custom-field')) {
+      const fieldIdToRemove = event.target.dataset.id;
+      const fieldToRemove = document.getElementById(`custom-field-${fieldIdToRemove}`);
+      if (fieldToRemove) {
+        container.removeChild(fieldToRemove);
+      }
+    }
+  });
+</script>

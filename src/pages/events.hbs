@@ -1,0 +1,46 @@
+<h1>Available Events</h1>
+
+{{#if error}}
+  <p style="color: red;">{{error}}</p>
+{{/if}}
+{{#if message}}
+  <p style="color: green;">{{message}}</p> <!-- For success/error messages from query params -->
+{{/if}}
+
+{{#if events.length}}
+  {{#each events}}
+    <div class="event-listing" style="border: 1px solid #ccc; margin-bottom: 15px; padding: 10px;">
+      <h2>{{this.title}}</h2>
+      <p><strong>Date:</strong> {{this.date}}</p>
+      <p><strong>Description:</strong> {{this.description}}</p>
+      
+      <div id="participation-form-{{this.id}}" style="margin-top:10px; padding: 10px; border: 1px dashed #eee;">
+        {{#if this.isRegistered}}
+          <p><strong>You are registered for this event!</strong></p>
+        {{else}}
+          <h4>Register for this Event:</h4>
+          <form method="POST" action="/events/{{this.id}}/register">
+            {{#if this.customFields.length}}
+              <p>Please answer the following:</p>
+              {{#each this.customFields}}
+                <div>
+                  <label for="cf-{{../this.id}}-{{this.id}}">{{this.label}}:</label>
+                  <input type="text" id="cf-{{../this.id}}-{{this.id}}" name="custom_{{this.id}}" required>
+                </div>
+              {{/each}}
+            {{else}}
+              <p><em>No additional information required for this event.</em></p>
+            {{/if}}
+            <button type="submit" style="margin-top:10px;">Attend Event</button>
+          </form>
+        {{/if}}
+      </div>
+
+    </div>
+  {{/each}}
+{{else}}
+  <p>No events currently available. Please check back later!</p>
+{{/if}}
+
+<p><a href="/dashboard">Back to Dashboard</a></p>
+<p><a href="/">Back to Home</a></p>

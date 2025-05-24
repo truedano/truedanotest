@@ -44,6 +44,22 @@
         
         <!-- This is the start of content for our page -->
         <h1 class="title">Hello Node!</h1>
+
+        {{#if user}}
+          <p>Welcome, {{user.username}}! (Role: {{user.role}}) <a href="/logout">Logout</a></p>
+          {{#if user.needsPasswordChange}} <!-- Assuming needsPasswordChange is passed if user exists -->
+            <p style="color: orange;">Please <a href="/change-password">change your default password</a>.</p>
+          {{/if}}
+          {{#if_eq user.role "admin"}}
+            <p><a href="/admin/create-user">Admin: Create User</a> | <a href="/admin/events">Admin: Manage Events</a></p>
+          {{/if_eq}}
+          {{#if_eq user.role "user"}}
+            <p><a href="/events">View Available Events</a></p>
+          {{/if_eq}}
+          <p><a href="/my-events">My Registered Events</a></p> <!-- Added this link -->
+        {{else}}
+          <p><a href="/login">Login</a></p>
+        {{/if}}
         
         <!-- Add text indicating that we've changed color OR had an error -->
         {{#if color}}

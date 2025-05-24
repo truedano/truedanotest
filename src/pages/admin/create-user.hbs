@@ -1,0 +1,20 @@
+<h1>Admin: Create New User</h1>
+{{#if error}}
+  <p style="color: red;">{{error}}</p>
+{{/if}}
+{{#if successMessage}}
+  <p style="color: green;">{{successMessage}}</p>
+{{/if}}
+<form method="POST" action="/admin/create-user">
+  <div>
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="username" required>
+  </div>
+  <div>
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required>
+  </div>
+  <button type="submit">Create User</button>
+</form>
+<p><a href="/dashboard">Back to Dashboard</a></p>
+<p><a href="/">Back to Home</a></p>
