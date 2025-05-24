@@ -1,18 +1,51 @@
-const low = require('lowdb');
-const FileAsync = require('lowdb/adapters/FileAsync');
+const jsonfile = require('jsonfile');
 const path = require('path');
+const fs = require('fs'); // To check file existence initially
 
 const dbPath = path.join(__dirname, '..', 'db.json');
-const adapter = new FileAsync(dbPath);
-const db = low(adapter); // db is the lowdb instance
+const defaultData = { users: [], events: [] };
 
 async function initializeDatabase() {
-  await db.read(); // This is key for v3 to populate db.data
-  db.data = db.data || { users: [], events: [] }; // Initialize if null (new file) or ensure structure
-  // Ensure keys exist even if db.data was an empty object from an empty file
-  if (typeof db.data.users === 'undefined') db.data.users = [];
-  if (typeof db.data.events === 'undefined') db.data.events = [];
-  await db.write();
+  try {
+    // Check if the file exists
+    if (fs.existsSync(dbPath)) {
+      // File exists, try to read it
+      const data = await jsonfile.readFile(dbPath);
+      // Ensure top-level keys exist
+      let changed = false;
+      if (typeof data.users === 'undefined') {
+        data.users = [];
+        changed = true;
+      }
+      if (typeof data.events === 'undefined') {
+        data.events = [];
+        changed = true;
+      }
+      if (changed) {
+        await jsonfile.writeFile(dbPath, data, { spaces: 2 });
+      }
+    } else {
+      // File does not exist, create it with default data
+      await jsonfile.writeFile(dbPath, defaultData, { spaces: 2 });
+      console.log('New db.json created with default structure.');
+    }
+  } catch (error) {
+    // If there was an error reading (e.g., corrupted JSON) or file existed but was empty
+    // or any other FS issue during the check, try to overwrite with default data.
+    console.error('Error initializing database, attempting to create/overwrite with default:', error);
+    try {
+      await jsonfile.writeFile(dbPath, defaultData, { spaces: 2 });
+      console.log('db.json created/overwritten with default structure due to initialization error.');
+    } catch (writeError) {
+      console.error('CRITICAL: Could not write default db.json:', writeError);
+      // If this fails, the app likely can't proceed.
+      throw writeError; // Re-throw critical error
+    }
+  }
 }
 
-module.exports = { db, initializeDatabase };
+module.exports = { 
+  dbPath, 
+  initializeDatabase 
+  // No 'db' instance is exported anymore, models will use jsonfile directly with dbPath
+};

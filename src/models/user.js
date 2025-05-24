@@ -1,11 +1,12 @@
 const bcrypt = require('bcrypt');
-const { db } = require('../db'); // Assuming db.js exports { db, initializeDatabase }
+const jsonfile = require('jsonfile');
+const { dbPath } = require('../db');
 
 const SALT_ROUNDS = 10;
 
 async function createUser(username, password, role, defaultPasswordChanged = true) {
-  await db.read(); // Ensure latest data for finding existing user
-  const existingUser = db.get('users').find({ username: username }).value();
+  const data = await jsonfile.readFile(dbPath);
+  const existingUser = data.users.find(u => u.username === username);
   if (existingUser) {
     throw new Error('User already exists');
   }
@@ -21,47 +22,48 @@ async function createUser(username, password, role, defaultPasswordChanged = tru
     defaultPasswordChanged 
   };
   
-  await db.get('users').push(user).write();
+  data.users.push(user);
+  await jsonfile.writeFile(dbPath, data, { spaces: 2 });
   
-  // Return user object without password for security
   const { hashedPassword: _, ...userWithoutPassword } = user;
   return userWithoutPassword;
 }
 
 async function findUserByUsername(username) {
-  await db.read(); // Ensure latest data
-  const user = db.get('users').find({ username: username }).value();
-  return user;
+  const data = await jsonfile.readFile(dbPath);
+  const user = data.users.find(u => u.username === username);
+  return user; // This will be undefined if not found, which is fine
 }
 
 async function verifyPassword(plainPassword, hashedPassword) {
+  // This function does not interact with the db file, so it remains unchanged.
   return bcrypt.compare(plainPassword, hashedPassword);
 }
 
 async function updateUserPassword(userId, newPassword) {
-  await db.read(); // Ensure latest data
-  const userToUpdate = db.get('users').find({ id: userId });
+  const data = await jsonfile.readFile(dbPath);
+  const userIndex = data.users.findIndex(u => u.id === userId);
 
-  if (!userToUpdate.value()) {
+  if (userIndex === -1) {
     throw new Error('User not found');
   }
 
   const salt = await bcrypt.genSalt(SALT_ROUNDS);
-  const hashedPassword = await bcrypt.hash(newPassword, salt);
+  const newHashedPassword = await bcrypt.hash(newPassword, salt);
 
-  await userToUpdate.assign({ hashedPassword: hashedPassword, defaultPasswordChanged: true }).write();
+  data.users[userIndex].hashedPassword = newHashedPassword;
+  data.users[userIndex].defaultPasswordChanged = true;
   
-  // Return a representation of the updated user (without password)
-  const updatedUserFromDb = userToUpdate.value();
-  const { hashedPassword: _, ...updatedUserSafe } = updatedUserFromDb;
-  return updatedUserSafe;
+  await jsonfile.writeFile(dbPath, data, { spaces: 2 });
+  
+  const { hashedPassword: _, ...updatedUser } = data.users[userIndex];
+  return updatedUser;
 }
 
 async function findUserById(userId) {
-  await db.read(); // Ensure latest data
-  const user = db.get('users').find({ id: userId }).value();
+  const data = await jsonfile.readFile(dbPath);
+  const user = data.users.find(u => u.id === userId);
   if (user) {
-    // Return a safe version of user (without password hash)
     const { hashedPassword, ...safeUser } = user; 
     return safeUser;
   }

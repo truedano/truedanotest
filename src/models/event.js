@@ -1,8 +1,9 @@
-const { db } = require('../db');
+const jsonfile = require('jsonfile');
+const { dbPath } = require('../db');
 
 async function createEvent(eventDetails) {
-  await db.read(); // Ensure we have the latest state before writing
-  // initializeDatabase in db.js should have already created db.data.events = []
+  const data = await jsonfile.readFile(dbPath);
+  data.events = data.events || []; // Ensure events array exists
 
   let formattedCustomFields = [];
   if (eventDetails.customFieldLabels && Array.isArray(eventDetails.customFieldLabels)) {
@@ -22,54 +23,63 @@ async function createEvent(eventDetails) {
     date: eventDetails.date,
     createdBy: eventDetails.createdBy, // Admin's user ID
     published: false,
-    customFields: formattedCustomFields, // Store formatted custom fields
+    customFields: formattedCustomFields,
     attendees: [],
   };
   
-  await db.get('events').push(newEvent).write(); // New way
+  data.events.push(newEvent);
+  await jsonfile.writeFile(dbPath, data, { spaces: 2 });
   return newEvent;
 }
 
 async function getAllEvents() {
-  await db.read(); // Optional: ensure latest data
-  return db.get('events').value() || []; // Get all events
+  const data = await jsonfile.readFile(dbPath);
+  return data.events || [];
 }
 
 async function findEventById(eventId) {
-  await db.read(); // Optional: ensure latest data
-  const event = db.get('events').find({ id: eventId }).value();
-  return event;
+  const data = await jsonfile.readFile(dbPath);
+  // Ensure data.events exists before trying to find on it
+  data.events = data.events || []; 
+  const event = data.events.find(e => e.id === eventId);
+  return event; // Will be undefined if not found
 }
 
 async function updateEvent(eventId, dataToUpdate) {
-  await db.read(); // Optional: ensure latest data
-  const eventToUpdate = db.get('events').find({ id: eventId });
-  if (!eventToUpdate.value()) {
+  const data = await jsonfile.readFile(dbPath);
+  data.events = data.events || [];
+  const eventIndex = data.events.findIndex(e => e.id === eventId);
+
+  if (eventIndex === -1) {
     throw new Error('Event not found');
   }
-  await eventToUpdate.assign(dataToUpdate).write(); // New way
-  return eventToUpdate.value(); // Return the modified event data
+
+  data.events[eventIndex] = { ...data.events[eventIndex], ...dataToUpdate };
+  await jsonfile.writeFile(dbPath, data, { spaces: 2 });
+  return data.events[eventIndex];
 }
 
 async function registerUserForEvent(eventId, userId, responses) {
-  await db.read(); // Optional: ensure latest data
-  const eventToUpdate = db.get('events').find({ id: eventId });
-  if (!eventToUpdate.value()) {
+  const data = await jsonfile.readFile(dbPath);
+  data.events = data.events || [];
+  const eventIndex = data.events.findIndex(e => e.id === eventId);
+
+  if (eventIndex === -1) {
     throw new Error('Event not found');
   }
 
-  const eventData = eventToUpdate.value(); // Get current event data
-  // Ensure attendees array exists on the fetched data (though initializeDatabase should handle the base)
-  eventData.attendees = eventData.attendees || []; 
-  const isAlreadyRegistered = eventData.attendees.some(attendee => attendee.userId === userId);
+  const eventData = data.events[eventIndex];
+  eventData.attendees = eventData.attendees || []; // Ensure attendees array exists
 
+  const isAlreadyRegistered = eventData.attendees.some(attendee => attendee.userId === userId);
   if (isAlreadyRegistered) {
     throw new Error('User already registered for this event');
   }
 
-  const updatedAttendees = [...eventData.attendees, { userId: userId, responses: responses }];
-  await eventToUpdate.assign({ attendees: updatedAttendees }).write(); // New way
-  return eventToUpdate.value(); // Return the modified event data
+  eventData.attendees.push({ userId: userId, responses: responses });
+  // data.events[eventIndex] is already updated by reference to eventData
+  await jsonfile.writeFile(dbPath, data, { spaces: 2 });
+  return data.events[eventIndex]; // Return the updated event
 }
 
 module.exports = {
